@@ -1,106 +1,64 @@
-do
-    
-function run(msg, matches)
-  local help = [[Self-Bot Commands
-
-●#bot on
-فعال کردن بوت در یک گروه خواص
-
-●#bot off
-غیر فعال کردن بوت در یک گروه خواض
-
-●#plugins
-مشاهده لیست پلاگین ها
-
-●#plugins enable (plugin name)
-فعال کردن پلاگینی با نام (plugin name)
-
-●#plugins disable (plugin name)
-غیر فعال کردن پلاگینی با نام (plugin name)
-
-●#plugins reload
-آپدیت کردن لیست پلاگین ها
-
-●#plugins disable (name) gp
-غیر فعال کردن پلاگین (name) در گروه مورد نظر
-
-●#plugins disable (name) gp
-فعال کردن پلاگین (name) در گروه مورد نظر
-
-●#addplug (text) (name)
-اضافه کردن پلاگینی به محتوای (text)و نام (name) به لیست پلاگین 
-
-●#getplug (name)
-ارسال پلاگین با نام (name)
-
-●#setname (name)
-تغیر نام گروه به (name)
-
-●#link 
-دریافت لینک گروه در پیوی
-
-●#newlink
-ساخت لینک جدید
-
-●#tosuper
-تبدیل گروه معمولی به سوپر گوه
-
-●#setdes (text)
-تغیر دسکریپشن گروه به (text)
-
-●#rmv @username (by reply)
-اخراج فردی با آیدی @username (حتی با ریپلای)
-
-●#add @username (by reply)
-ادد کردن فردی با آیدی @username به گروه (حتی با ریپلای)
-
-●#id @username (by reply)
-دریافت آیدی عددی فردی با آیدی @username (حتی با ریپلای)
-
-●#gid
-دریافت آیدی گروه
-
-●#google (text)
-جستجو (text) در گوگل
-
-●#webshot (http://google.com)
-دریافت اسکرین شات از سایت گوگل
-
-●#voice (text)
-تبدیل (text) به صدا
-
-●#insta (insta id)
-دریافت اطلاعات اینستاگرام فردی با آیدی (intsa id)
-
-●#insta (post link)
-دریافت اطلاعات پستی در اینستاگرام با لینک (post link)
-
-●#set (text1) (text2)
-سیو شدن (text2) در جواب (text)
-
-●#get (text1)
-ارسال متن سیو شده برای (text1) یعنی (text2)
-
-●#weather (city)
-دریافت اطلاعات آب و هوای شهر (city)
-
-●#sticker (text)
-تبدیل (text) به استیکر
-
-.......................................
-📡
-- @BeatBot_Team
-.......................................]]
-    if matches[1] == 'help' and is_sudo(msg) then
-      send_large_msg("user#id"..msg.from.id, help)      
-   return '💥 Help was sent in your pv '
+local action = function(msg, blocks, ln)
+    -- save stats
+    if blocks[1] == 'start' then
+        if msg.chat.type == 'private' then
+            local hash = 'bot:general'
+            db:hincrby(hash, 'users', 1)
+            local name = msg.from.first_name:mEscape()
+            api.sendMessage(msg.chat.id, make_text(lang[ln].help.private, name), true)
+        end
+        return
     end
-end 
+    if blocks[1] == 'help' then
+        mystat('/help')
+        if msg.chat.type == 'private' then
+            local name = msg.from.first_name:mEscape()
+            api.sendMessage(msg.chat.id, make_text(lang[ln].help.private, name), true)
+            return
+        end
+        keyboard = {}
+        keyboard.inline_keyboard = {
+    	    {
+    		    {text = "Normal user", callback_data = '/user'},
+			    {text = "Moderator", callback_data = '/mod'},
+    		    {text = "Owner", callback_data = '/owner'}
+	    	},
+    		{
+    			{text = "Info", callback_data = '/info'}
+	    	}
+    	}
+        local res = api.sendKeyboard(msg.from.id, 'Choose the *role* to see the available commands:', keyboard, true)
+        if res then
+            api.sendMessage(msg.chat.id, lang[ln].help.group_success, true)
+        else
+            api.sendMessage(msg.chat.id, lang[ln].help.group_not_success, true)
+        end
+    end
+    if msg.cb then
+        local role = blocks[1]
+        local msg_id = msg.message_id
+        local text
+        if role == 'user' then
+            text = lang[ln].help.all
+        elseif role == 'mod' then
+            text = lang[ln].help.moderator
+        elseif role == 'owner' then
+            text = lang[ln].help.owner
+        elseif role == 'info' then
+            text = lang[ln].credits
+        end
+        api.editMessageText(msg.chat.id, msg_id, text, keyboard, true)
+    end
+end
 
 return {
-  patterns = {
-    "^#(help)$"
-  },
-  run = run
+	action = action,
+	triggers = {
+	    '^/(start)$',
+	    '^/(help)$',
+	    '^###cb:/(user)',
+    	'^###cb:/(owner)',
+	    '^###cb:/(mod)',
+	    '^###cb:/(info)'
+    }
 }
-end
